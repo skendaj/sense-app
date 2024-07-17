@@ -18,7 +18,7 @@ interface ProfileInfo {
 
 interface Spreadsheet {
   spreadsheetId: string;
-  title: string;
+  range: string;
 }
 
 const schema = z.object({
@@ -34,7 +34,6 @@ export const SearchForm: React.FC = () => {
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
   const [output, setOutput] = useState('');
   const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([]);
-  const [spreadsheetContent, setSpreadsheetContent] = useState<string[][]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -46,17 +45,18 @@ export const SearchForm: React.FC = () => {
       setUserInfo({ access_token: token });
     }
   }, []);
-
   const login = useGoogleLogin({
     onSuccess: (response: any) => {
       setUserInfo(response);
       localStorage.setItem('access_token', response.access_token);
     },
     onError: (error: any) => console.log(`Login Failed: ${error}`),
+    scope: 'https://www.googleapis.com/auth/drive.readonly', 
   });
 
   useEffect(() => {
     if (userInfo) {
+      console.log("token", userInfo.access_token);
       axios
         .get(`https://www.googleapis.com/oauth2/v1/userinfo?access_token=${userInfo.access_token}`, {
           headers: {
@@ -67,55 +67,56 @@ export const SearchForm: React.FC = () => {
         .then((response) => {
           setProfileInfo(response.data);
         })
-        .catch((error) => console.log(error));
-
-      fetchSpreadsheets(userInfo.access_token);
+        .catch((error) => console.log(error))
+        
+        fetchSpreadsheets();
+        
     }
   }, [userInfo]);
 
-  const fetchSpreadsheets = (accessToken: string) => {
-    axios
-      .get('https://www.googleapis.com/auth/spreadsheets', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      .then((response) => {
-        const sheets: Spreadsheet[] = response.data.spreadsheets.map((sheet: any) => ({
-          spreadsheetId: sheet.spreadsheetId,
-          title: sheet.properties.title,
-        }));
-        setSpreadsheets(sheets);
-      })
-      .catch((error) => console.log(error));
-  };
-  console.log("spreadsheets", spreadsheets);
   
 
-  const fetchSpreadsheetContent = (spreadsheetId: string, accessToken: string) => {
-    axios
-      .get(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:Z100`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      .then((response) => {
-        setSpreadsheetContent(response.data.values);
-      })
-      .catch((error) => console.log(error));
+  const fetchSpreadsheets = async () => {
+    const spreadsheetId = '1H6fp3ZDZgWfJgFFlz2xjX_z6AfkNq4MDH32bmSwzLGo';
+    const range = 'A1:Z100';
+    const headers = { Authorization: `Bearer ${userInfo?.access_token}` };
+  
+    try {
+      const response = await axios.get(
+        'https://www.googleapis.com/drive/v3/files',
+        {
+          params: {
+            q: "mimeType='application/vnd.google-apps.spreadsheet'",
+            fields: 'files(id, name)',
+          },
+          headers,
+        }
+      );
+  
+      const spreadsheets = response.data.files;
+      setSpreadsheets(spreadsheets); // Update spreadsheets state
+  
+      return spreadsheets;
+    } catch (error) {
+      console.error('Error fetching spreadsheets:', error);
+      throw error;
+    }
   };
-  console.log("spreadsheetContent", spreadsheetContent);
-
-
-  const onSubmit = (data: FormData) => {
-    let searchParams = `Searching for "${data.searchTerm}"`;
-    if (data.location) {
-      searchParams += ` in ${data.location}`;
+  
+  // Ensure useEffect fetches spreadsheets when userInfo updates
+  useEffect(() => {
+    if (userInfo) {
+      fetchSpreadsheets();
     }
-    if (data.spreadsheetId) {
-      fetchSpreadsheetContent(data.spreadsheetId, userInfo?.access_token || '');
-    }
-    setOutput(searchParams);
+  }, [userInfo]);
+
+  console.log("spreadsheets:", spreadsheets);
+  
+
+  const onSubmit = async (data: FormData) => {
+    // Your submission logic here, handle search term, location, etc.
+    console.log(data);
+    // Example: setOutput('Search results');
   };
 
   const logOut = () => {
@@ -123,7 +124,7 @@ export const SearchForm: React.FC = () => {
     localStorage.removeItem('access_token');
     setProfileInfo(null);
     setUserInfo(null);
-    setSpreadsheetContent([]);
+    setSpreadsheets([]);
   };
 
   return (
@@ -179,8 +180,9 @@ export const SearchForm: React.FC = () => {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
               >
                 <option value="">Select a spreadsheet</option>
+                {/* Dynamically populate options based on fetched spreadsheets */}
                 {spreadsheets.map((sheet, index) => (
-                  <option key={index} value={sheet.spreadsheetId}>{sheet.title}</option>
+                  <option key={index} value={sheet.id}>{sheet.name}</option>
                 ))}
               </select>
             </div>
@@ -200,24 +202,25 @@ export const SearchForm: React.FC = () => {
                 value={output}
                 readOnly
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-                rows={5}
+                rows={150}
+                cols={150}
               />
             </div>
           </div>
 
-          {spreadsheetContent.length > 0 && (
+          {/* {spreadsheets.length > 0 && (
             <div className="mt-8">
               <h2 className="text-xl font-bold">Spreadsheet Content</h2>
               <table className="mt-4 w-full border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100">
-                    {spreadsheetContent[0].map((cell, index) => (
+                    {spreadsheets[0].map((cell, index) => (
                       <th key={index} className="border border-gray-300 px-3 py-2 text-left">{cell}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {spreadsheetContent.slice(1).map((row, rowIndex) => (
+                  {spreadsheets.slice(1).map((row, rowIndex) => (
                     <tr key={rowIndex} className="border border-gray-300">
                       {row.map((cell, cellIndex) => (
                         <td key={cellIndex} className="border border-gray-300 px-3 py-2">{cell}</td>
@@ -227,7 +230,7 @@ export const SearchForm: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          )}
+          )} */}
         </div>
       ) : (
         <button onClick={() => login()} className="block mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
