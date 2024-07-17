@@ -231,6 +231,8 @@ export const SearchForm: React.FC = () => {
               </table>
             </div>
           )} */}
+          
+
         </div>
       ) : (
         <button onClick={() => login()} className="block mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
