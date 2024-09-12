@@ -6,6 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {  extractNameAndUrlPairs } from '../utils/extractNameAndUrlPairs';
 import { Header } from './Header';
+import { Card, CardContent, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
 
 interface UserInfo {
   access_token: string;
@@ -42,6 +50,7 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
+      searchTerm: 'Chair',
       location: 'Australia',
     },
   });
@@ -189,151 +198,103 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
   return (
     <>
     <Header />
-    <div className="max-w-4xl mx-auto mt-8 p-6 border rounded-lg shadow-md">
-    
+    <Card className="max-w-4xl mx-auto mt-8">
+    <CardContent className="p-6">
       {profileInfo ? (
-        <div> 
-          <img className="rounded-full h-24 w-24 mx-auto mb-4" src={profileInfo.picture} alt="Profile Image" />
-          <h3 className="text-center text-xl font-bold">{profileInfo.name}</h3>
-          <p className="text-center text-gray-600">{profileInfo.email}</p>
-          <br />
-          <button onClick={logOut} className="block mx-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mb-2">
-            Log out
-          </button>
-{/*  */}
-          {/* <div>
-      <h2>Extracted Formatted Values:</h2>
-      {formattedValues.length > 0 ? (
-        <>
-          {formattedValues.map((value, index) => (
-            <p key={index}>{value}</p>
-          ))}
-        </>
-      ) : (
-        <p>No formatted values found.</p>
-      )}
-    </div> */}
-    {/*  */}
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-8">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <label htmlFor="searchTerm" className="text-gray-700 font-bold w-1/4">Search Term:</label>
-              <div className="w-3/4">
-                <input
-                  type="text"
-                  id="searchTerm"
-                  {...register('searchTerm')}
-                  className={`w-full border ${errors.searchTerm ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 focus:outline-none focus:border-blue-500`}
-                />
-                {errors.searchTerm && <p className="text-red-500 text-sm mt-1">{errors.searchTerm.message}</p>}
-              </div>
-            </div>
-
-    <div className="flex items-center space-x-4">
-      <label className="text-gray-700 font-bold w-1/4">Location:</label>
-      <div className="w-3/4 flex space-x-4">
-        <label className="inline-flex items-center">
-          <input
-            type="radio"
-            value="Australia"
-            defaultChecked
-            {...register('location')}
-            className="form-radio h-5 w-5 text-blue-600"
-          />
-          <span className="ml-2">Australia</span>
-        </label>
-        <label className="inline-flex items-center">
-          <input
-            type="radio"
-            value="New Zealand"
-            {...register('location')}
-            className="form-radio h-5 w-5 text-blue-600"
-          />
-          <span className="ml-2">New Zealand</span>
-        </label>
-      </div>
-    </div>
-
-    <div className="flex items-center space-x-4">
-      <label htmlFor="spreadsheetId" className="text-gray-700 font-bold w-1/4">Spreadsheet:</label>
-                <select
-        id="spreadsheetId"
-        {...register('spreadsheetId')}
-        value={selectedSpreadsheetId}
-        onChange={(e) => {
-          const selectedId = e.target.value;
-          setSelectedSpreadsheetId(selectedId);
-        }}
-        className="w-3/4 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-      >
-        <option value="">Select a spreadsheet ({spreadsheets.length})</option>
-        {spreadsheets.map((sheet, index) => (
-          <option 
-            key={index} 
-            value={sheet.id}
-          >
-            {sheet.name}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    <div className="flex justify-center">
-      <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-        disabled={isLoading}
-        >
-          {isLoading ? 'Loading...' : 'Search'}
-      </button>
-    </div>
-  </div>
-</form>
-          <br/>
-          <div className="mt-4">
-            <label htmlFor="output" className="block text-gray-700 font-bold mb-2">Output :</label>
-            <div>
-      {/* <textarea
-        id="output"
-        value={output}
-        readOnly
-        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-        rows={15}
-        cols={50}
-      /> */}
-  </div>
+        <div>
+          <div className="flex flex-col items-center mb-6">
+            <Avatar className="h-24 w-24 mb-4">
+              <AvatarImage src={profileInfo.picture} alt="Profile Image" />
+              <AvatarFallback>{profileInfo.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <CardTitle className="text-xl font-bold">{profileInfo.name}</CardTitle>
+            <p className="text-gray-600">{profileInfo.email}</p>
           </div>
-
-          {/* {spreadsheets.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-bold">Spreadsheet Content</h2>
-              <table className="mt-4 w-full border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-100">
-                    {spreadsheets[0].map((cell, index) => (
-                      <th key={index} className="border border-gray-300 px-3 py-2 text-left">{cell}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {spreadsheets.slice(1).map((row, rowIndex) => (
-                    <tr key={rowIndex} className="border border-gray-300">
-                      {row.map((cell, cellIndex) => (
-                        <td key={cellIndex} className="border border-gray-300 px-3 py-2">{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )} */}
           
+          <Button variant="destructive" onClick={logOut} className="w-full mb-6">
+            Log out
+          </Button>
 
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="searchTerm">Search Term</Label>
+              <Input
+                id="searchTerm"
+                {...register('searchTerm')}
+                defaultValue="Chair"
+                className={errors.searchTerm ? 'border-red-500' : ''}
+              />
+              {errors.searchTerm && <p className="text-red-500 text-sm">{errors.searchTerm.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <RadioGroup 
+                defaultValue="Australia" 
+                onValueChange={(value: "Australia" | "New Zealand") => setValue('location', value)}
+              >                
+              <div className="flex space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Australia" id="australia" />
+                    <Label htmlFor="australia">Australia</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="New Zealand" id="newZealand" />
+                    <Label htmlFor="newZealand">New Zealand</Label>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="spreadsheetId">Spreadsheet</Label>
+              <Select onValueChange={(value) => {
+                setSelectedSpreadsheetId(value);
+                setValue('spreadsheetId', value);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder={`Select a spreadsheet (${spreadsheets.length})`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {spreadsheets.map((sheet, index) => (
+                    <SelectItem key={index} value={sheet.id}>
+                      {sheet.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading ? 'Loading...' : 'Search'}
+            </Button>
+          </form>
+
+          <div className="mt-6 space-y-2">
+            <Label htmlFor="output">Output</Label>
+            <div className="relative w-full h-64">
+              {isLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : (
+                <Textarea
+                  id="output"
+                  value={output}
+                  readOnly
+                  className="w-full h-full p-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+            </div>
+          </div>
         </div>
       ) : (
-        <button onClick={() => login()} className="block mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+        <Button onClick={() => login()} className="w-full">
           Sign in with Google
-        </button>
+        </Button>
       )}
-    </div>
+    </CardContent>
+  </Card>
     </>
   );
 };
