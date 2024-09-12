@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useGoogleLogin, googleLogout } from '@react-oauth/google';
-import {  useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {  extractNameAndUrlPairs } from '../utils/extractNameAndUrlPairs';
+import { extractNameAndUrlPairs } from '../utils/extractNameAndUrlPairs';
 import { Header } from './Header';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -149,6 +149,34 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
       setIsLoading(false);
     }
   };
+
+  const fetchSerpResults = async (searchTerm: string, location: string) => {
+    const headers = { 
+      Authorization: `Bearer ${userInfo?.access_token}`,
+      'API-Key': import.meta.env.VITE_SERP_API_KEY,
+    };    setIsLoading(true);
+    try {
+      const response = await axios.get('https://serpapi.com/search.json', {
+        headers,
+        params: {
+          engine: 'google_shopping',
+          google_domain: location === 'Australia' ? 'google.com.au' : 'google.co.nz',
+          q: searchTerm,
+          tbm: 'shop',
+          location: location,
+        },
+      });
+      return response.data;
+      console.log("SERP Results:", response.data);
+
+
+    } catch (error) {
+      console.error('Error fetching SERP results:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Ensure useEffect fetches spreadsheets when userInfo updates
   useEffect(() => {
@@ -159,21 +187,28 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
     }
   }, [userInfo]);
 
+  useEffect(() => {
+    console.log("SERP API Key:", import.meta.env.REACT_APP_SERP_API_KEY);
+  }, []);
+
   
 
   const onSubmit = async (data: FormData) => {
     console.log("formData:", data);
-    // setOutput('Loading...');
-    if (data.spreadsheetId) {
-      try {
-        await fetchSpreadsheetContent(data.spreadsheetId);
-      } catch (error) {
-        console.log('Error fetching spreadsheet content:', error);
-        setOutput('Error fetching spreadsheet content');
-      }
-    } else {
-      console.log('No spreadsheet selected');
-      setOutput('No spreadsheet selected');
+    setIsLoading(true);
+    try {
+      let results = '';
+  
+  
+      const serpResults = await fetchSerpResults(data.searchTerm, data.location || 'Australia');
+      results += JSON.stringify(serpResults, null, 2);
+  
+      setOutput(results);
+    } catch (error) {
+      console.error('Error during submission:', error);
+      setOutput('Error fetching results');
+    } finally {
+      setIsLoading(false);
     }
   };
 
