@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {  extractNameAndUrlPairs } from '../utils/extractNameAndUrlPairs';
 import { Header } from './Header';
-import { Card, CardContent, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Label } from './ui/label';
@@ -14,6 +14,7 @@ import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
+import { CircleNotch } from '@phosphor-icons/react';
 
 interface UserInfo {
   access_token: string;
@@ -196,105 +197,117 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
   console.log("formattedValues:", formattedValues);
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
     <Header />
-    <Card className="max-w-4xl mx-auto mt-8">
-    <CardContent className="p-6">
-      {profileInfo ? (
-        <div>
-          <div className="flex flex-col items-center mb-6">
-            <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src={profileInfo.picture} alt="Profile Image" />
-              <AvatarFallback>{profileInfo.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <CardTitle className="text-xl font-bold">{profileInfo.name}</CardTitle>
-            <p className="text-gray-600">{profileInfo.email}</p>
-          </div>
-          
-          <Button variant="destructive" onClick={logOut} className="w-full mb-6">
-            Log out
-          </Button>
+    <main className="flex-grow flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Prospect Search</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {profileInfo ? (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center">
+                <Avatar className="h-24 w-24 mb-4">
+                  <AvatarImage src={profileInfo.picture} alt="Profile" />
+                  <AvatarFallback>{profileInfo.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <h2 className="text-xl font-semibold">{profileInfo.name}</h2>
+                <p className="text-sm text-gray-500">{profileInfo.email}</p>
+              </div>
+              
+              <Button variant="destructive" onClick={logOut} className="w-full">
+                Log out
+              </Button>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="searchTerm">Search Term</Label>
-              <Input
-                id="searchTerm"
-                {...register('searchTerm')}
-                defaultValue="Chair"
-                className={errors.searchTerm ? 'border-red-500' : ''}
-              />
-              {errors.searchTerm && <p className="text-red-500 text-sm">{errors.searchTerm.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Location</Label>
-              <RadioGroup 
-                defaultValue="Australia" 
-                onValueChange={(value: "Australia" | "New Zealand") => setValue('location', value)}
-              >                
-              <div className="flex space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Australia" id="australia" />
-                    <Label htmlFor="australia">Australia</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="New Zealand" id="newZealand" />
-                    <Label htmlFor="newZealand">New Zealand</Label>
-                  </div>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="searchTerm">Search Term</Label>
+                  <Input
+                    id="searchTerm"
+                    {...register('searchTerm')}
+                    className={errors.searchTerm ? 'border-red-500' : ''}
+                  />
+                  {errors.searchTerm && <p className="text-sm text-red-500">{errors.searchTerm.message}</p>}
                 </div>
-              </RadioGroup>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="spreadsheetId">Spreadsheet</Label>
-              <Select onValueChange={(value) => {
-                setSelectedSpreadsheetId(value);
-                setValue('spreadsheetId', value);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Select a spreadsheet (${spreadsheets.length})`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {spreadsheets.map((sheet, index) => (
-                    <SelectItem key={index} value={sheet.id}>
-                      {sheet.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Loading...' : 'Search'}
-            </Button>
-          </form>
-
-          <div className="mt-6 space-y-2">
-            <Label htmlFor="output">Output</Label>
-            <div className="relative w-full h-64">
-              {isLoading ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                <div className="space-y-2">
+                  <Label>Location</Label>
+                  <RadioGroup 
+                    defaultValue="Australia" 
+                    onValueChange={(value: "Australia" | "New Zealand") => setValue('location', value)}
+                    className="flex space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Australia" id="australia" />
+                      <Label htmlFor="australia">Australia</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="New Zealand" id="newZealand" />
+                      <Label htmlFor="newZealand">New Zealand</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-              ) : (
-                <Textarea
-                  id="output"
-                  value={output}
-                  readOnly
-                  className="w-full h-full p-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="spreadsheetId">Spreadsheet</Label>
+                  <Select onValueChange={(value) => {
+                    setSelectedSpreadsheetId(value)
+                    setValue('spreadsheetId', value)
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select a spreadsheet (${spreadsheets.length})`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {spreadsheets.map((sheet) => (
+                        <SelectItem key={sheet.id} value={sheet.id}>
+                          {sheet.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button type="submit" disabled={isLoading} className="w-full">
+                  {isLoading ? (
+                    <>
+                      <CircleNotch size={16} className="mr-2 animate-spin" />
+                      Loading
+                    </>
+                  ) : (
+                    'Search'
+                  )}
+                </Button>
+              </form>
+
+              <div className="space-y-2">
+                <Label htmlFor="output">Output</Label>
+                <div className="relative w-full h-64">
+                  {isLoading ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <CircleNotch size={16} className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <Textarea
+                      id="output"
+                      value={output}
+                      readOnly
+                      className="w-full h-full resize-none"
+                    />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        <Button onClick={() => login()} className="w-full">
-          Sign in with Google
-        </Button>
-      )}
-    </CardContent>
-  </Card>
-    </>
+          ) : (
+            <div className="flex justify-center">
+              <Button onClick={() => login()} size="lg">
+                Sign in with Google
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </main>
+  </div>
   );
 };
