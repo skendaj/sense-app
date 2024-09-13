@@ -15,6 +15,8 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { CircleNotch } from '@phosphor-icons/react';
+import { formattedList } from '@/utils/formattedList';
+import { ShoppingData, extractSerpApiSourceAndLinkPairs } from '@/utils/extractSerpApiSourceAndLinkPairs';
 
 interface UserInfo {
   access_token: string;
@@ -44,10 +46,10 @@ export const SearchForm: React.FC = () => {
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
   const [output, setOutput] = useState('');
   const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([]);
+  const [serpResults, setSerpResults] = useState<ShoppingData>({});
   const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
-console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -62,6 +64,7 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
       setUserInfo({ access_token: token });
     }
   }, []);
+
   const login = useGoogleLogin({
     onSuccess: (response: any) => {
       setUserInfo(response);
@@ -73,7 +76,6 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
 
   useEffect(() => {
     if (userInfo) {
-      console.log("token", userInfo.access_token);
       axios
         .get(`https://www.googleapis.com/oauth2/v1/userinfo?access_token=${userInfo.access_token}`, {
           headers: {
@@ -84,15 +86,12 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
         .then((response) => {
           setProfileInfo(response.data);
         })
-        .catch((error) => console.log(error))
+        .catch((error) => console.log(error));
         
-        fetchSpreadsheets();
-        
+      fetchSpreadsheets();
     }
   }, [userInfo]);
-
   
-
   const fetchSpreadsheets = async () => {
     const headers = { Authorization: `Bearer ${userInfo?.access_token}` };
   
@@ -127,19 +126,11 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
     try {
       const sheetsResponse = await axios.get(
         `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
-
         { headers, 
-          params: { 
-            includeGridData: true, 
-            ranges: 'A1:B31155',
-            // fields: 'sheets(properties(sheetId, title))',
-
-        } 
-      }
+          params: { includeGridData: true, ranges: 'A1:B31155' }
+        }
       );
-      console.log("Content@Spreadsheet:", sheetsResponse.data);
-
-  
+      
       setOutput(JSON.stringify(sheetsResponse.data));
     } catch (error) {
       setIsLoading(false);
@@ -151,25 +142,21 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
   };
 
   const fetchSerpResults = async (searchTerm: string, location: string) => {
-    const headers = { 
-      Authorization: `Bearer ${userInfo?.access_token}`,
-      'API-Key': import.meta.env.VITE_SERP_API_KEY,
-    };    setIsLoading(true);
+    setIsLoading(true);
     try {
       const response = await axios.get('https://serpapi.com/search.json', {
-        headers,
         params: {
           engine: 'google_shopping',
           google_domain: location === 'Australia' ? 'google.com.au' : 'google.co.nz',
           q: searchTerm,
           tbm: 'shop',
           location: location,
+          num: 100,
+          api_key: import.meta.env.VITE_SERP_API_KEY,
         },
       });
+      setSerpResults(response.data);
       return response.data;
-      console.log("SERP Results:", response.data);
-
-
     } catch (error) {
       console.error('Error fetching SERP results:', error);
       throw error;
@@ -177,38 +164,23 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
       setIsLoading(false);
     }
   };
-  
-  // Ensure useEffect fetches spreadsheets when userInfo updates
-  useEffect(() => {
-    if (userInfo) {
-      fetchSpreadsheets();
-      // fetchSpreadsheetContent(spreadsheets[0].id);
-
-    }
-  }, [userInfo]);
-
-  useEffect(() => {
-    console.log("SERP API Key:", import.meta.env.REACT_APP_SERP_API_KEY);
-  }, []);
-
-  
 
   const onSubmit = async (data: FormData) => {
     console.log("formData:", data);
     setIsLoading(true);
     try {
-      let results = '';
-  
-  
       const serpResults = await fetchSerpResults(data.searchTerm, data.location || 'Australia');
-      results += JSON.stringify(serpResults, null, 2);
+      console.log("serpResults@Submit:", serpResults);
+      const serpSourceLinkPairs = extractSerpApiSourceAndLinkPairs(serpResults);
+      console.log("serpSourceLinkPairs@Submit:", serpSourceLinkPairs);
   
-      setOutput(results);
+      setOutput(formattedList(serpSourceLinkPairs));
     } catch (error) {
       console.error('Error during submission:', error);
       setOutput('Error fetching results');
     } finally {
       setIsLoading(false);
+      console.log("output@Submit:", output);
     }
   };
 
@@ -220,129 +192,117 @@ console.log("selectedSpreadsheetId:", selectedSpreadsheetId);
     setSpreadsheets([]);
   };
 
-  let formattedValues: any[] = [];
-  if (output) {
-    try {
-      const parsedOutput = JSON.parse(output);
-      formattedValues = extractNameAndUrlPairs(parsedOutput);
-    } catch (error) {
-      console.error('Error parsing output:', error);
-    }
-  }
-  console.log("formattedValues:", formattedValues);
-
   return (
     <div className="min-h-screen flex flex-col">
-    <Header />
-    <main className="flex-grow flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Prospect Search</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {profileInfo ? (
-            <div className="space-y-6">
-              <div className="flex flex-col items-center">
-                <Avatar className="h-24 w-24 mb-4">
-                  <AvatarImage src={profileInfo.picture} alt="Profile" />
-                  <AvatarFallback>{profileInfo.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-semibold">{profileInfo.name}</h2>
-                <p className="text-sm text-gray-500">{profileInfo.email}</p>
-              </div>
+      <Header />
+      <main className="flex-grow flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Prospect Search</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {profileInfo ? (
+              <div className="space-y-6">
+                <div className="flex flex-col items-center">
+                  <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src={profileInfo.picture} alt="Profile" />
+                    <AvatarFallback>{profileInfo.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <h2 className="text-xl font-semibold">{profileInfo.name}</h2>
+                  <p className="text-sm text-gray-500">{profileInfo.email}</p>
+                </div>
               
-              <Button variant="destructive" onClick={logOut} className="w-full">
-                Log out
-              </Button>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="searchTerm">Search Term</Label>
-                  <Input
-                    id="searchTerm"
-                    {...register('searchTerm')}
-                    className={errors.searchTerm ? 'border-red-500' : ''}
-                  />
-                  {errors.searchTerm && <p className="text-sm text-red-500">{errors.searchTerm.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <RadioGroup 
-                    defaultValue="Australia" 
-                    onValueChange={(value: "Australia" | "New Zealand") => setValue('location', value)}
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Australia" id="australia" />
-                      <Label htmlFor="australia">Australia</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="New Zealand" id="newZealand" />
-                      <Label htmlFor="newZealand">New Zealand</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="spreadsheetId">Spreadsheet</Label>
-                  <Select onValueChange={(value) => {
-                    setSelectedSpreadsheetId(value)
-                    setValue('spreadsheetId', value)
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`Select a spreadsheet (${spreadsheets.length})`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {spreadsheets.map((sheet) => (
-                        <SelectItem key={sheet.id} value={sheet.id}>
-                          {sheet.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <CircleNotch size={16} className="mr-2 animate-spin" />
-                      Loading
-                    </>
-                  ) : (
-                    'Search'
-                  )}
+                <Button variant="destructive" onClick={logOut} className="w-full">
+                  Log out
                 </Button>
-              </form>
 
-              <div className="space-y-2">
-                <Label htmlFor="output">Output</Label>
-                <div className="relative w-full h-64">
-                  {isLoading ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <CircleNotch size={16} className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <Textarea
-                      id="output"
-                      value={output}
-                      readOnly
-                      className="w-full h-full resize-none"
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="searchTerm">Search Term</Label>
+                    <Input
+                      id="searchTerm"
+                      {...register('searchTerm')}
+                      className={errors.searchTerm ? 'border-red-500' : ''}
                     />
-                  )}
+                    {errors.searchTerm && <p className="text-sm text-red-500">{errors.searchTerm.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <RadioGroup 
+                      defaultValue="Australia" 
+                      onValueChange={(value: "Australia" | "New Zealand") => setValue('location', value)}
+                      className="flex space-x-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Australia" id="australia" />
+                        <Label htmlFor="australia">Australia</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="New Zealand" id="newZealand" />
+                        <Label htmlFor="newZealand">New Zealand</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="spreadsheetId">Spreadsheet</Label>
+                    <Select onValueChange={(value) => {
+                      setSelectedSpreadsheetId(value)
+                      setValue('spreadsheetId', value)
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select a spreadsheet (${spreadsheets.length})`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {spreadsheets.map((sheet) => (
+                          <SelectItem key={sheet.id} value={sheet.id}>
+                            {sheet.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button type="submit" disabled={isLoading} className="w-full">
+                    {isLoading ? (
+                      <>
+                        <CircleNotch size={16} className="mr-2 animate-spin" />
+                        Loading
+                      </>
+                    ) : (
+                      'Search'
+                    )}
+                  </Button>
+                </form>
+
+                <div className="space-y-2">
+                  <Label htmlFor="output">Output</Label>
+                  <div className="relative w-full h-64">
+                    {isLoading ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <CircleNotch size={16} className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div
+                        id="output"
+                        className="w-full h-full text-left resize-none overflow-auto p-3 bg-white border border-neutral-200 rounded-lg shadow-sm dark:bg-neutral-900 dark:border-neutral-800"
+                        dangerouslySetInnerHTML={{ __html: output }}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <Button onClick={() => login()} size="lg">
-                Sign in with Google
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </main>
-  </div>
+            ) : (
+              <div className="flex justify-center">
+                <Button onClick={() => login()} size="lg">
+                  Sign in with Google
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
   );
 };
