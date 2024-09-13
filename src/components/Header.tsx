@@ -5,7 +5,7 @@ export const Header = () => {
     <div className="container mx-auto px-4 md:px-6 lg:px-8">
     <header className="flex h-20 w-full shrink-0 items-center px-4 md:px-6">
      <img className="h-8 w-auto mr-4" src="/sense.png" alt="Sense" />
-        <Label className="text-primary">Sense</Label>
+        <Label className="text-primary">Blue Sense Digital</Label>
 
       <div className="ml-auto flex gap-2">
 
