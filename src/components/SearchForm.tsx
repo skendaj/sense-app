@@ -49,8 +49,11 @@ export const SearchForm: React.FC = () => {
   const [serpResults, setSerpResults] = useState<ShoppingData>({});
   const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [nextLink, setNextLink] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 10;
 
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, getValues } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       searchTerm: 'Chair',
@@ -141,21 +144,27 @@ export const SearchForm: React.FC = () => {
     }
   };
 
-  const fetchSerpResults = async (searchTerm: string, location: string) => {
+  const fetchSerpResults = async (searchTerm: string, location: string, url?: string) => {
     setIsLoading(true);
+    
+    const apiKey = import.meta.env.VITE_SERP_API_KEY;
+    const requestUrl = url ? `${url}&api_key=${apiKey}` : 'https://serpapi.com/search.json';
+    
     try {
-      const response = await axios.get('https://serpapi.com/search.json', {
-        params: {
+      const response = await axios.get(requestUrl, {
+        params: !url ? {
           engine: 'google_shopping',
           google_domain: location === 'Australia' ? 'google.com.au' : 'google.co.nz',
           q: searchTerm,
           tbm: 'shop',
           location: location,
-          num: 100,
-          api_key: import.meta.env.VITE_SERP_API_KEY,
-        },
+          num: itemsPerPage,
+          api_key: apiKey,
+        } : undefined,
       });
+  
       setSerpResults(response.data);
+      setNextLink(response.data.serpapi_pagination?.next || null);
       return response.data;
     } catch (error) {
       console.error('Error fetching SERP results:', error);
@@ -167,22 +176,39 @@ export const SearchForm: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     console.log("formData:", data);
+    setCurrentPage(0);
+    setNextLink(null); 
     setIsLoading(true);
     try {
       const serpResults = await fetchSerpResults(data.searchTerm, data.location || 'Australia');
-      console.log("serpResults@Submit:", serpResults);
       const serpSourceLinkPairs = extractSerpApiSourceAndLinkPairs(serpResults);
-      console.log("serpSourceLinkPairs@Submit:", serpSourceLinkPairs);
-  
       setOutput(formattedList(serpSourceLinkPairs));
     } catch (error) {
       console.error('Error during submission:', error);
       setOutput('Error fetching results');
     } finally {
       setIsLoading(false);
-      console.log("output@Submit:", output);
     }
   };
+
+  const handleNextPage = async () => {
+    if (nextLink) {
+      await fetchSerpResults('', '', nextLink);
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  
+  // const handlePreviousPage = async () => {
+  //   const searchTerm = getValues('searchTerm') as string;
+  //   const location = getValues('location') as string;
+  //   if (currentPage > 0) {
+  //     const previousPage = currentPage - 1;
+  //     const start = previousPage * itemsPerPage;
+  //     setCurrentPage(previousPage);
+  //     await fetchSerpResults(searchTerm, location, start);
+  //   }
+  // };
 
   const logOut = () => {
     googleLogout();
@@ -277,21 +303,31 @@ export const SearchForm: React.FC = () => {
                 </form>
 
                 <div className="space-y-2">
-                  <Label htmlFor="output">Output</Label>
-                  <div className="relative w-full h-64">
-                    {isLoading ? (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <CircleNotch size={16} className="h-8 w-8 animate-spin text-primary" />
-                      </div>
-                    ) : (
-                      <div
-                        id="output"
-                        className="w-full h-full text-left resize-none overflow-auto p-3 bg-white border border-neutral-200 rounded-lg shadow-sm dark:bg-neutral-900 dark:border-neutral-800"
-                        dangerouslySetInnerHTML={{ __html: output }}
-                      />
-                    )}
-                  </div>
+                <Label htmlFor="output">Output</Label>
+                <div className="relative w-full h-64">
+                  {isLoading ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <CircleNotch size={16} className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div
+                      id="output"
+                      className="w-full h-full text-left resize-none overflow-auto p-3 bg-white border border-neutral-200 rounded-lg shadow-sm dark:bg-neutral-900 dark:border-neutral-800"
+                      dangerouslySetInnerHTML={{ __html: output }}
+                    />
+                  )}
                 </div>
+                {output && (
+                  <div className="flex justify-between mt-2">
+                    {/* <Button onClick={handlePreviousPage} disabled={currentPage === 0}>
+                      Previous
+                    </Button> */}
+                    <Button onClick={handleNextPage}>
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
               </div>
             ) : (
               <div className="flex justify-center">
