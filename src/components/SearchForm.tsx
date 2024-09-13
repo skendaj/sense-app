@@ -44,14 +44,17 @@ export const SearchForm: React.FC = () => {
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
   const [output, setOutput] = useState('');
   const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([]);
+  // @ts-ignore
   const [serpResults, setSerpResults] = useState<ShoppingData>({});
+  // @ts-ignore
+
   const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [nextLink, setNextLink] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 10;
 
-  const { register, handleSubmit, formState: { errors }, setValue, getValues } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       searchTerm: 'Chair',
@@ -141,6 +144,8 @@ export const SearchForm: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  console.log("fetchSpreadsheetContent:", fetchSpreadsheetContent);
 
   const fetchSerpResults = async (searchTerm: string, location: string, url?: string) => {
     setIsLoading(true);
